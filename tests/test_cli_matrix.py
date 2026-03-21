@@ -92,8 +92,7 @@ def _make_matrix_test(scenario, move, overwrite, contents, verbose):
             if overwrite:
                 args.append("-o")
             if contents:
-                # Alternate aliases to exercise both.
-                args.append("-C" if scenario.endswith("path") else "-c")
+                args.append("-c")
             if verbose:
                 args.append("-v")
             args.extend([src_arg, dst_arg])

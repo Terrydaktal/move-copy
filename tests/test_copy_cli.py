@@ -38,7 +38,7 @@ class CopyCliIntegrationTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("-m, --move", out)
         self.assertIn("-s, --sudo", out)
-        self.assertIn("-c, -C, --contents-only", out)
+        self.assertIn("-c, --contents-only", out)
         self.assertIn("-v, --verbose, --showall", out)
 
     def test_move_same_slot_to_parent_is_noop_by_default(self):
@@ -162,15 +162,15 @@ class CopyCliIntegrationTests(unittest.TestCase):
                 r"\.\.\. and (?:\d+ more (?:new|modified|unchanged|removed))(?: \d+ more (?:new|modified|unchanged|removed))*",
             )
 
-    def test_contents_only_uppercase_alias(self):
+    def test_contents_only_uppercase_alias_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             src = Path(td) / "src" / "A"
             dst = Path(td) / "dst"
             write_file(src / "f.txt", "x\n")
             dst.mkdir(parents=True)
             rc, out, _ = run_copy(["--move", "-C", str(src), str(dst)])
-            self.assertEqual(rc, 0)
-            self.assertIn("Planned transfer bytes:", out)
+            self.assertNotEqual(rc, 0)
+            self.assertIn("unrecognized arguments: -C", out)
 
     def test_verbose_alias_does_not_crash(self):
         with tempfile.TemporaryDirectory() as td:

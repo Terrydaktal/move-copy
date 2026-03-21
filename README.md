@@ -1,9 +1,6 @@
 # copy
 
-Single standalone Python CLI for local filesystem transfers using `rsync`.
-
-- `copy` mode (default): source stays in place.
-- `move` mode (`--move`): source is transferred, then removed.
+Single standalone Python CLI for local filesystem transfers using `rsync` (copy by default, move with `-m/--move`).
 
 ## Requirements
 
@@ -11,7 +8,7 @@ Single standalone Python CLI for local filesystem transfers using `rsync`.
   - `python3`
   - `rsync`
   - coreutils (`cp`, `mv`, `rm`, `find`)
-  - `sudo` (only when using `--sudo`)
+  - `sudo` (only when using `-s/--sudo`)
 
 ## Project Structure
 
@@ -19,93 +16,83 @@ Single standalone Python CLI for local filesystem transfers using `rsync`.
 copy/
 ├── .gitignore
 ├── copy
-└── README.md
+├── README.md
+└── tests/
+    ├── test_cli_matrix.py
+    └── test_copy_cli.py
 ```
 
-## Script
+## Command
 
-### `copy`
+```bash
+./copy [OPTIONS] SOURCE DESTINATION
+```
 
-Purpose:
-- Copy or move a file/directory with preview, confirmation, progress, and optional backup.
+- Default mode: copy
+- Move mode: `-m`, `--move`
 
-Inputs:
-- Positional:
-  - `source`: file or directory path
-  - `destination`: directory path, or file path when source is a file
-- Flags:
-  - `--move`: run in move mode (transfer then remove source data)
-  - `--sudo`: run transfer/removal commands with sudo
-  - `-o`, `--overwrite`: replace conflicting destination target
-  - `-n`, `--no-nesting`: treat destination directory as the explicit target (merge into it instead of nesting source name under it)
-  - `-b`, `--backup`: create timestamped backup when destination data would be merged/replaced
-  - `--showall`: preview all destination depth-1 entries (new/changed/unchanged)
+## Flags
 
-Behavior detail:
-- Always performs an `rsync` dry-run preflight first (`--itemize-changes --stats`).
-- Uses `--size-only` matching for transfer decisions.
-- For simple operations (no merge/overwrite/backup/`source/*`), uses native backend:
+- `-m`, `--move`
+  - Move mode (transfer then remove source data).
+- `-s`, `--sudo`
+  - Run transfer/removal commands with sudo.
+- `-o`, `--overwrite`
+  - Replace conflicting destination target instead of merge behavior.
+- `-c`, `--contents-only`
+  - Merge source contents directly into destination path (no source-basename nesting).
+- `-b`, `--backup`
+  - Create timestamped backup when destination data would be merged/replaced.
+- `-v`, `--verbose`, `--showall`
+  - Show hierarchical preview: up to 5 changed entries per level (modified first), expand only modified folders, and abbreviate remaining non-shown counts.
+
+## Current Behavior
+
+- Always runs an `rsync` dry-run preflight first (`--itemize-changes --stats`).
+- Uses `--size-only` for transfer decisions.
+- For simple operations (no merge/overwrite/backup/contents-only), uses native backend:
   - `cp -a` in copy mode
   - `mv` in move mode
-- Directory conflict handling:
-  - default: may nest source directory under destination directory
-  - `-n`: avoid nesting, merge source contents into destination directory path
-  - `-o`: overwrite nested conflicting target
-  - `-o -n`: overwrite explicit destination directory path
-- For move mode, empty source directories are cleaned up after successful transfer.
+- `SOURCE/*` is treated as contents-only mode (equivalent to using `-c` on `SOURCE/`).
+- Parent/self-overlap safety is enforced; no-op cases print `No changes detected`.
+- Move mode removes transferred source files and cleans empty source directories.
 
-Outputs:
-- Terminal:
-  - mode summary line
-  - preview tree + top-level summary
-  - planned transfer bytes
-  - confirmation prompt
-  - live progress and duration
-  - final completion/warning/error message
-- Filesystem:
-  - copied or moved content at destination
-  - optional timestamped backup directory/file (when requested and applicable)
+## Preview Output
 
-## Internal Operation Pipeline
-
-Execution flow:
-
-1. Parse args and normalize paths.
-2. Resolve source/destination kinds and choose conflict strategy.
-3. Run `rsync` dry-run preflight and build preview + byte estimate.
-4. Print preview and request confirmation.
-5. If confirmed:
-   - optionally backup destination conflict target
-   - optionally remove conflict target for overwrite flows
-   - execute transfer (native `cp`/`mv` or `rsync`)
-   - in move mode, clean empty source directories
-6. Print final status and duration.
+- Mode line (`Overwrite Move Copy Merge Rename Backup File Dir Contents`).
+- Tree preview rooted at destination context.
+- In verbose mode, unchanged overflow is abbreviated (plus new/modified/removed overflow when present).
+- Regular file summary:
+  - `new`, `modified`, `unchanged`, `removed`, `removed_from_source`
+- Planned transfer bytes + confirmation prompt.
 
 ## Usage Examples
 
 ```bash
-# Copy a directory into a destination root
+# Copy directory into destination root (may nest source basename)
 ./copy /data/src/project /data/dst/
 
-# Move a directory
-./copy --move /data/src/project /data/archive/
+# Move directory
+./copy -m /data/src/project /data/archive/
 
-# Replace nested conflicting target (overwrite)
-./copy --move -o /data/src/project /data/archive/
+# Overwrite conflicting target
+./copy -m -o /data/src/project /data/archive/
 
-# Replace explicit destination directory path (overwrite + no nesting)
-./copy --move -o -n /data/src/project /data/archive/project_renamed
+# Contents-only merge (no nesting)
+./copy -c /data/src/project/ /data/archive/project_renamed
 
-# Backup destination data before merge/overwrite
-./copy -b -n /data/src/project /data/dst/project_renamed
+# Overwrite explicit destination path in contents-only mode
+./copy -m -o -c /data/src/project/ /data/archive/project_renamed
 
-# Use sudo for protected paths
-./copy --sudo /root/input /mnt/shared/output/
+# Literal SOURCE/* behavior (same as contents-only)
+./copy "/data/src/project/*" /data/archive/
+
+# Sudo mode
+./copy -s /root/input /mnt/shared/output/
 ```
 
-## Notes
+## Test
 
-- Use `source/*` if you want to transfer directory contents only.
-- Quote globs like `'*'` if you need literal handling by the script.
-- Default preview shows only changed destination depth-1 entries plus unchanged counts.
-- `--showall` includes unchanged entries in white.
+```bash
+python3 -m unittest discover -s tests -v
+```

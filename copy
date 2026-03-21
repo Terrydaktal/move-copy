@@ -881,7 +881,6 @@ def main():
     )
     parser.add_argument(
         "-c",
-        "-C",
         "--contents-only",
         dest="force_rename",
         action="store_true",
@@ -944,7 +943,7 @@ def main():
         return 1
 
     # Trailing slash alone does not imply contents mode. Explicit "/*" is
-    # normalized to no-nesting behavior (same as "-n"), not a separate mode.
+    # normalized to contents-only behavior (same as "-c"), not a separate mode.
     source_contents_mode = bool(source_glob_contents and not force)
     dest_tail_raw = os.path.basename((destination or "").rstrip("/"))
     destination_is_dir_ref = destination.endswith("/") or dest_tail_raw in ("", ".", "..")
@@ -973,7 +972,7 @@ def main():
         else:
             src_parent_real = os.path.realpath(os.path.dirname(src_mnt.rstrip("/")))
             # Example: cwd=/x/poo, src=poo, dst=..
-            # Default should no-op (self-overwrite path); -n should merge contents into dst.
+            # Default should no-op (self-overwrite path); -c should merge contents into dst.
             if dst_slot_for_src == src_parent_real:
                 source_already_in_destination = True
                 if force and not source_contents_mode:
